@@ -1,11 +1,11 @@
 require("mocha");
 const { assert } = require("chai");
-const { streamTrades } = require("../lib/index");
+const { streamTradesPaper, streamTradesBacktest } = require("../lib/index");
 
-describe("streamTrades", function() {
-  it("streamTrades", function(done) {
-    this.timeout(500000);
-    assert.isFunction(streamTrades);
+describe.skip("streamTradesPaper", function() {
+  it("streamTradesPaper", function(done) {
+    this.timeout(130000);
+    assert.isFunction(streamTradesPaper);
 
     const options = {
       exchange: "hitbtc",
@@ -28,7 +28,7 @@ describe("streamTrades", function() {
 
     // console.log(options);
 
-    const rs = streamTrades(options);
+    const rs = streamTradesPaper(options);
     rs.on("data", chunk => {
       const trade = JSON.parse(chunk);
       // проверить advice.price!!
@@ -39,6 +39,49 @@ describe("streamTrades", function() {
 
     rs.on("end", () => {
       console.log("end");
+      done();
+    });
+  });
+});
+
+describe("streamTradesBacktest", function() {
+  it("streamTradesBacktest", function(done) {
+    this.timeout(5000);
+    assert.isFunction(streamTradesBacktest);
+
+    const options = {
+      exchange: "hitbtc",
+      currency: "USD",
+      asset: "BTC",
+      period: 60,
+      start: "2019-10-01",
+      end: "2019-10-02",
+      indicators: [
+        {
+          name: "max",
+          options: [2]
+        }
+      ],
+      code:
+        "return buffer[1].indicators[0][0] > buffer[0].indicators[0][0] ? 1 : -1;",
+      initialBalance: 70
+    };
+
+    let i = 0;
+
+    // console.log(options);
+
+    const rs = streamTradesBacktest(options);
+    rs.on("data", chunk => {
+      const trade = JSON.parse(chunk);
+      // проверить advice.price!!
+      console.log("trade:", trade);
+      assert.isObject(trade);
+      i++;
+    });
+
+    rs.on("end", () => {
+      // assert.equal(i, 24);
       done();
     });
   });

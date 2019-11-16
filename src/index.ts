@@ -1,3 +1,4 @@
+import { streamAdviceToTrade as streamAdviceToTradeBacktest } from "advice-to-trade";
 import { getTicker } from "exchange-service";
 import { streamAdvice } from "get-advice";
 import { Readable, Transform } from "stream";
@@ -14,7 +15,7 @@ export interface ITrade {
   amount: number;
 }
 
-export function streamAdviceToTrade({
+export function streamAdviceToTradePaper({
   exchange,
   currency,
   asset,
@@ -30,7 +31,6 @@ export function streamAdviceToTrade({
 
   const ts = new Transform({
     transform: async (chunk, encoding, callback) => {
-      console.log("advice:", JSON.parse(chunk));
       const { time, sign } = JSON.parse(chunk) as IAdvice;
       const { bid, ask } = await getTicker({ exchange, currency, asset });
       const price = (bid + ask) / 2; // пока без учета спреда
@@ -58,7 +58,7 @@ export function streamAdviceToTrade({
   return ts;
 }
 
-export function streamTrades({
+export function streamTradesPaper({
   exchange,
   currency,
   asset,
@@ -87,12 +87,39 @@ export function streamTrades({
     code
   });
 
-  const ts = streamAdviceToTrade({
+  const ts = streamAdviceToTradePaper({
     exchange,
     currency,
     asset,
     initialBalance
   });
+  rs.pipe(ts);
+  return ts;
+}
+
+export function streamTradesBacktest({
+  exchange,
+  currency,
+  asset,
+  period,
+  start,
+  end,
+  indicators,
+  code,
+  initialBalance
+}: any): Readable {
+  const rs = streamAdvice({
+    exchange,
+    currency,
+    asset,
+    period,
+    start,
+    end,
+    indicators,
+    code
+  });
+
+  const ts = streamAdviceToTradeBacktest(initialBalance);
   rs.pipe(ts);
   return ts;
 }
