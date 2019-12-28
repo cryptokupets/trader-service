@@ -1,6 +1,6 @@
 require("mocha");
 const { assert } = require("chai");
-const { streamTradesPaper, streamTradesBacktest } = require("../lib/index");
+const { streamTradesPaper, streamTradesBacktest, streamBuffer } = require("../lib/index");
 
 describe.skip("streamTradesPaper", function() {
   it("streamTradesPaper", function(done) {
@@ -82,6 +82,41 @@ describe("streamTradesBacktest", function() {
 
     rs.on("end", () => {
       // assert.equal(i, 24);
+      done();
+    });
+  });
+});
+
+
+describe("warmup", function() {
+  it("streamBuffer", function(done) {
+    this.timeout(5000);
+
+    const options = {
+      exchange: "hitbtc",
+      currency: "USD",
+      asset: "BTC",
+      period: 240,
+      start: "2019-10-01",
+      end: "2019-10-02",
+      indicators: [
+        {
+          name: "max",
+          options: [5]
+        }
+      ]
+    };
+
+    // console.log(options);
+
+    const rs = streamBuffer(options);
+    rs.on("data", chunk => {
+      const buffer = JSON.parse(chunk);
+      // console.log("buffer item:", buffer);
+      assert.isNotEmpty(buffer.indicators[0]);
+    });
+
+    rs.on("end", () => {
       done();
     });
   });

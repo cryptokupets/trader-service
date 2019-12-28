@@ -2,10 +2,14 @@ import { streamAdviceToTrade as streamAdviceToTradeBacktest } from "advice-to-tr
 import { getTicker } from "exchange-service";
 import { streamCandle } from "get-candles";
 import {
+  getStart,
+  IBuffer,
   ICandle,
+  IIndicator,
   streamBufferToAdvice,
   streamCandleToBuffer
 } from "get-indicators";
+import moment from "moment";
 import { Readable, Transform } from "stream";
 export { IBuffer } from "get-indicators";
 
@@ -35,6 +39,20 @@ export function streamCandlesToItem(): Transform {
   return ts;
 }
 
+function skipWarmup(begin: string): Transform {
+  const beginMoment = moment(begin);
+  const ts = new Transform({
+    transform: async (chunk, encoding, callback) => {
+      const bufferItem: IBuffer = JSON.parse(chunk);
+      if (moment(bufferItem.candle.time).isSameOrAfter(beginMoment)) {
+        ts.push(chunk);
+      }
+      callback();
+    }
+  });
+  return ts;
+}
+
 export function streamBuffer({
   exchange,
   currency,
@@ -44,19 +62,34 @@ export function streamBuffer({
   end,
   indicators
 }: any): Readable {
+  // добавлять к свечам время для прогрева
+  const indicatorStart: number = (indicators as IIndicator[])
+    .map(value => getStart(value))
+    .reduce(
+      (previousValue, currentValue) => Math.max(previousValue, currentValue),
+      0
+    );
+
+  const beginWarmup = moment
+    .utc(start)
+    .add(-indicatorStart * period, "m")
+    .toISOString();
+
   const rs = streamCandle({
     exchange,
     currency,
     asset,
     period,
-    start,
+    start: beginWarmup,
     end
   }); // здесь свечи как массив
   const ts0 = streamCandlesToItem();
   const ts1 = streamCandleToBuffer(indicators);
+  const ts2 = skipWarmup(start); // пропустить прогрев начать с момент старта
   rs.pipe(ts0);
   ts0.pipe(ts1);
-  return ts1;
+  ts1.pipe(ts2);
+  return ts2;
 }
 
 export function streamAdvice({
