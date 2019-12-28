@@ -3,6 +3,8 @@ import { getTicker } from "exchange-service";
 import { streamAdvice } from "get-advice";
 import { Readable, Transform } from "stream";
 
+export { streamBuffer } from "get-advice";
+
 export interface IAdvice {
   time: string;
   sign: number;
